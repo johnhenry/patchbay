@@ -98,8 +98,8 @@ A complete page: [`examples/04-cards-and-wires-in-a-browser/`](examples/04-cards
 
 `attachViewport(viewport, { container, world, wheel = "pan", wheelZoomSpeed, panOnDrag, keyboard = true })` returns `{ coordinates, detach }` and:
 
-- **wheel** pans; Ctrl/⌘+wheel and trackpad pinch (which browsers report as a Ctrl wheel) zoom about the cursor. `wheel: "zoom"` swaps them. A mouse-wheel notch is capped to a modest zoom step so it doesn't jump.
-- **drag** pans when `panOnDrag(event)` returns true; by default the middle button, a drag with Space held, or a primary drag that starts on the empty stage or world element (not on your content).
+- **wheel** pans and ⌘+wheel zooms about the cursor; `wheel: "zoom"` swaps those two. Ctrl+wheel and trackpad pinch (which browsers report as a Ctrl wheel) always zoom, at the same rate as ⌘+wheel. A mouse-wheel notch is capped to a modest zoom step (about 1.35×; `wheelZoomSpeed` defaults to `0.006`) so it doesn't jump.
+- **drag** pans when `panOnDrag(event)` returns true; by default the middle button, a drag with Space held, or a primary drag that starts on empty canvas: the stage, the world element or the wire layer (not on your content).
 - **keyboard**, while the stage has focus: `+`/`=`/`-` zoom, `0` resets to 100%, arrows pan (Shift for bigger steps).
 - **`data-patchbay-ignore`** on any element inside the stage gives it back its own wheel and drag: a scrollable output panel, a map, an interactive animation camera.
 - applies `transform()` to `world` and sets `--patchbay-x`, `--patchbay-y` and `--patchbay-zoom` on the container.
@@ -115,7 +115,7 @@ A complete page: [`examples/04-cards-and-wires-in-a-browser/`](examples/04-cards
 
 ## Styling
 
-`@johnhenry/patchbay/patchbay.css` is optional: `.patchbay-stage` (a dot grid that pans and scales with the world), `.patchbay-world`, `.patchbay-wires` and `.patchbay-wire` (`vector-effect: non-scaling-stroke`, so wires stay crisp at any zoom). Tokens: `--patchbay-background`, `--patchbay-dot`, `--patchbay-grid`, `--patchbay-wire`, `--patchbay-wire-width`, `--patchbay-wire-active`, with `light-dark()` defaults.
+`@johnhenry/patchbay/patchbay.css` is optional: `.patchbay-stage` (a dot grid that pans and scales with the world), `.patchbay-world`, `.patchbay-wires` and `.patchbay-wire` (`vector-effect: non-scaling-stroke`, so wires stay crisp at any zoom; a wire with a `title` takes pointer events so its tooltip shows). Tokens: `--patchbay-background`, `--patchbay-dot`, `--patchbay-grid`, `--patchbay-wire`, `--patchbay-wire-width`, `--patchbay-wire-active`, with `light-dark()` defaults.
 
 ## Honest limitations
 

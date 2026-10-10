@@ -133,11 +133,12 @@ export function boundsOf(rects) {
 /**
  * Wire a viewport to the DOM.
  *
- * - wheel pans; Ctrl/Cmd+wheel (and trackpad pinch, which browsers report as
- *   ctrlKey wheel events) zooms about the cursor. `wheel: "zoom"` flips that.
+ * - wheel pans and ⌘+wheel zooms (`wheel: "zoom"` swaps those two); Ctrl+wheel
+ *   and trackpad pinch (which browsers report as Ctrl+wheel) always zoom, about
+ *   the cursor, at the same rate as ⌘+wheel.
  * - dragging pans when `panOnDrag(event)` says so: by default the middle
- *   button, Space held, or any primary drag that starts on the container
- *   itself or the world element (empty canvas), not on content.
+ *   button, Space held, or any primary drag that starts on empty canvas (the
+ *   container, the world element, or the wire layer), not on content.
  * - keyboard (when the container has focus): `+`/`-` zoom, `0` resets zoom,
  *   arrows pan.
  * - anything inside an element with `data-patchbay-ignore` keeps its own
@@ -153,7 +154,7 @@ export function boundsOf(rects) {
  * @param {{ container: HTMLElement, world?: HTMLElement, wheel?: "pan" | "zoom",
  *   wheelZoomSpeed?: number, panOnDrag?: (event: PointerEvent) => boolean, keyboard?: boolean }} options
  */
-export function attachViewport(viewport, { container, world, wheel = "pan", wheelZoomSpeed = 0.0015, panOnDrag, keyboard = true } = {}) {
+export function attachViewport(viewport, { container, world, wheel = "pan", wheelZoomSpeed = 0.006, panOnDrag, keyboard = true } = {}) {
   if (!container) throw new TypeError("attachViewport: `container` is required");
   const doc = container.ownerDocument;
   let spaceDown = false;
@@ -176,8 +177,10 @@ export function attachViewport(viewport, { container, world, wheel = "pan", whee
   apply();
   const unsubscribe = viewport.subscribe(apply);
 
-  const defaultPanOnDrag = (event) =>
-    event.button === 1 || (event.button === 0 && (spaceDown || event.target === container || event.target === world));
+  // Empty canvas: the stage, the world, or the wire layer (wires are background).
+  const onBackground = (target) =>
+    target === container || target === world || Boolean(target?.closest?.(".patchbay-wires") && container.contains(target));
+  const defaultPanOnDrag = (event) => event.button === 1 || (event.button === 0 && (spaceDown || onBackground(event.target)));
   const shouldPan = panOnDrag ?? defaultPanOnDrag;
 
   // Content that handles its own gestures (a scrollable panel, an interactive
@@ -190,16 +193,19 @@ export function attachViewport(viewport, { container, world, wheel = "pan", whee
 
   const onWheel = (event) => {
     if (ignored(event)) return;
-    const modifier = Boolean(event.ctrlKey || event.metaKey);
-    const zoomGesture = modifier !== (wheel === "zoom");
+    // Ctrl+wheel always zooms: it is also how browsers report a trackpad
+    // pinch, and a pinch should zoom whatever the wheel policy. ⌘ flips the
+    // policy for a plain wheel.
+    const zoomGesture = Boolean(event.ctrlKey) || Boolean(event.metaKey) !== (wheel === "zoom");
     event.preventDefault();
     if (zoomGesture) {
       // deltaMode 1 = lines; normalize roughly to pixels.
       // A mouse-wheel notch reports ~100px while a trackpad pinch reports a
       // few px per event; capping the per-event delta keeps one notch to a
-      // modest step without slowing pinch.
+      // modest step (about 1.35x) without slowing pinch. Same rate for every
+      // modifier.
       const dy = Math.max(-50, Math.min(50, event.deltaY * (event.deltaMode === 1 ? 16 : 1)));
-      viewport.zoomAt(local(event.clientX, event.clientY), Math.exp(-dy * wheelZoomSpeed * (event.ctrlKey ? 4 : 1)));
+      viewport.zoomAt(local(event.clientX, event.clientY), Math.exp(-dy * wheelZoomSpeed));
     } else {
       const scale = event.deltaMode === 1 ? 16 : 1;
       viewport.panBy(-event.deltaX * scale, -event.deltaY * scale);

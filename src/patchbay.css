@@ -22,3 +22,5 @@
   vector-effect: non-scaling-stroke;
 }
 .patchbay-wire-pending { stroke: var(--patchbay-wire-active, light-dark(#0969da, #58a6ff)); stroke-dasharray: 4 3; }
+/* A wire with a title (createWires' `title` option) can be hovered for its tooltip. */
+.patchbay-wire:has(> title) { pointer-events: visibleStroke; }

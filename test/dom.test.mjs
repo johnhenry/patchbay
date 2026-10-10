@@ -57,6 +57,28 @@ test("a plain wheel pans; a ctrl wheel zooms about the cursor", () => {
   detach();
 });
 
+test("a pinch (Ctrl+wheel) zooms under either wheel policy; ⌘ flips the policy; rates match", () => {
+  const { container, world } = stage();
+  const vp = createViewport();
+  const { detach } = attachViewport(vp, { container, world, wheel: "zoom" });
+  wheel(container, { deltaY: -20, ctrlKey: true, clientX: 400, clientY: 300 });
+  const afterPinch = vp.zoom;
+  assert.ok(afterPinch > 1, "pinch zooms under wheel: zoom");
+  wheel(container, { deltaY: 30, metaKey: true });
+  assert.equal(vp.zoom, afterPinch, "⌘ flips zoom policy to pan");
+  assert.equal(vp.y, vp.get().y);
+  detach();
+  const a = createViewport();
+  const b = createViewport();
+  const da = attachViewport(a, { container, world });
+  wheel(container, { deltaY: -100, ctrlKey: true, clientX: 400, clientY: 300 });
+  da.detach();
+  const db = attachViewport(b, { container, world });
+  wheel(container, { deltaY: -100, metaKey: true, clientX: 400, clientY: 300 });
+  db.detach();
+  assert.ok(Math.abs(a.zoom - b.zoom) < 1e-12, "Ctrl and ⌘ zoom at the same rate");
+});
+
 test("dragging the empty canvas pans; dragging content does not", () => {
   const { container, world } = stage();
   const card = document.createElement("div");
@@ -71,6 +93,15 @@ test("dragging the empty canvas pans; dragging content does not", () => {
   pointer(container, "pointermove", { clientX: 40, clientY: 25 });
   pointer(container, "pointerup", {});
   assert.deepEqual([vp.x, vp.y], [40, 25]);
+  const svgLayer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgLayer.setAttribute("class", "patchbay-wires");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  svgLayer.append(path);
+  world.append(svgLayer);
+  pointer(path, "pointerdown", { clientX: 0, clientY: 0 });
+  pointer(container, "pointermove", { clientX: 10, clientY: 0 });
+  pointer(container, "pointerup", {});
+  assert.deepEqual([vp.x, vp.y], [50, 25], "a drag that starts on a wire pans too");
   detach();
 });
 
