@@ -4,6 +4,8 @@
 [![CI](https://github.com/johnhenry/patchbay/actions/workflows/ci.yml/badge.svg)](https://github.com/johnhenry/patchbay/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/%40johnhenry%2Fpatchbay.svg)](LICENSE)
 
+Full documentation: [opensource.johnhenry.me/patchbay](https://opensource.johnhenry.me/patchbay/)
+
 A pannable, zoomable canvas, and the wires between things on it.
 
 Node editors, spatial notebooks, whiteboards and patch-cable UIs all need the same two pieces: a viewport (screen-to-world math, zoom about the cursor, wheel/pinch/drag/keyboard gestures, zoom-to-fit) and wires (curves between ports that follow the things they connect, plus a drag-to-connect gesture). patchbay is those two pieces and nothing else: no node model, no framework, no layout. Your content stays ordinary DOM inside one transformed element.
