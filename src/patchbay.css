@@ -1,0 +1,24 @@
+/* Optional base styles for @johnhenry/patchbay. Every value is a custom property. */
+.patchbay-stage {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  outline: none;
+  /* A dot grid that pans and scales with the world. */
+  --_grid: calc(var(--patchbay-grid, 24px) * var(--patchbay-zoom, 1));
+  background-color: var(--patchbay-background, light-dark(#f6f7f9, #0e1116));
+  background-image: radial-gradient(circle, var(--patchbay-dot, light-dark(#c9ced6, #2b313b)) calc(1px * min(1, var(--patchbay-zoom, 1))), transparent 0);
+  background-size: var(--_grid) var(--_grid);
+  background-position: var(--patchbay-x, 0) var(--patchbay-y, 0);
+}
+.patchbay-stage[data-patchbay-space],
+.patchbay-stage[data-patchbay-panning] { cursor: grabbing; }
+.patchbay-world { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.patchbay-wires { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.patchbay-wire {
+  fill: none;
+  stroke: var(--patchbay-wire, light-dark(#9aa4b2, #5b6573));
+  stroke-width: var(--patchbay-wire-width, 1.5px);
+  vector-effect: non-scaling-stroke;
+}
+.patchbay-wire-pending { stroke: var(--patchbay-wire-active, light-dark(#0969da, #58a6ff)); stroke-dasharray: 4 3; }

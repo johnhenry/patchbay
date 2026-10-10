@@ -1,0 +1,97 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>patchbay: cards and wires</title>
+<link rel="stylesheet" href="../../src/patchbay.css" />
+<style>
+  html, body { margin: 0; height: 100%; color-scheme: light dark; font: 14px system-ui, sans-serif; }
+  #stage { position: fixed; inset: 0; }
+  .card { position: absolute; width: 160px; padding: 10px; border-radius: 8px; background: Canvas; border: 1px solid GrayText; cursor: move; user-select: none; }
+  .port { position: absolute; right: -7px; top: 14px; width: 12px; height: 12px; border-radius: 50%; background: Highlight; cursor: crosshair; }
+  .card.hover { outline: 2px solid Highlight; }
+  .scroll { height: 60px; overflow: auto; margin-top: 6px; font-size: 12px; }
+  p.help { position: fixed; left: 12px; bottom: 8px; margin: 0; opacity: .7; }
+</style>
+<div id="stage" class="patchbay-stage" tabindex="0">
+  <div class="patchbay-world" id="world"><svg class="patchbay-wires" id="wires"></svg></div>
+</div>
+<p class="help">Wheel pans, Ctrl/⌘+wheel or pinch zooms, drag empty space to pan, drag a card to move it, drag a blue port onto a card to wire it, drop on empty space to create a card. The scrolling list ignores canvas gestures.</p>
+<script type="module">
+  import { createViewport, attachViewport, createWires, connectDrag } from "../../src/index.mjs";
+
+  const stage = document.getElementById("stage");
+  const world = document.getElementById("world");
+  const svg = document.getElementById("wires");
+  const vp = createViewport();
+  const { coordinates } = attachViewport(vp, { container: stage, world });
+
+  const cards = new Map();
+  const links = new Set();
+  const wires = createWires({
+    svg,
+    resolve: ({ id, side }) => {
+      const c = cards.get(id);
+      if (!c) return undefined;
+      return side === "out" ? { x: c.x + 160, y: c.y + 20 } : { x: c.x, y: c.y + 20 };
+    },
+  });
+  const redraw = () => {
+    for (const key of links) {
+      const [from, to] = key.split("->");
+      wires.set(key, { from: { id: from, side: "out" }, to: { id: to, side: "in" } });
+    }
+    wires.retain(links).update();
+  };
+
+  let n = 0;
+  function addCard(x, y) {
+    const id = `c${++n}`;
+    const el = document.createElement("div");
+    el.className = "card";
+    el.dataset.id = id;
+    el.innerHTML = `<b>${id}</b><div class="port"></div>${n === 1 ? '<div class="scroll" data-patchbay-ignore>' + "scroll me<br>".repeat(12) + "</div>" : ""}`;
+    world.append(el);
+    const card = { el, x, y };
+    cards.set(id, card);
+    const place = () => (el.style.transform = `translate(${card.x}px, ${card.y}px)`);
+    place();
+
+    el.addEventListener("pointerdown", (event) => {
+      if (event.target.classList.contains("port")) {
+        connectDrag({
+          svg, event, toWorld: coordinates.toWorld,
+          from: { x: card.x + 160, y: card.y + 20 },
+          hitTest: (cx, cy) => document.elementFromPoint(cx, cy)?.closest(".card")?.dataset.id,
+          onHover: (t) => document.querySelectorAll(".card").forEach((c) => c.classList.toggle("hover", c.dataset.id === t)),
+          onConnect: (target) => { if (target !== id) links.add(`${id}->${target}`); redraw(); },
+          onDrop: (p) => { const nid = addCard(p.x, p.y - 20); links.add(`${id}->${nid}`); redraw(); },
+        });
+        event.stopPropagation();
+        return;
+      }
+      if (event.target.closest("[data-patchbay-ignore]")) return;
+      const start = coordinates.toWorld(event.clientX, event.clientY);
+      const origin = { x: card.x, y: card.y };
+      el.setPointerCapture(event.pointerId);
+      const move = (e) => {
+        const p = coordinates.toWorld(e.clientX, e.clientY);
+        card.x = origin.x + p.x - start.x;
+        card.y = origin.y + p.y - start.y;
+        place();
+        wires.schedule();
+      };
+      const up = () => { el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); };
+      el.addEventListener("pointermove", move);
+      el.addEventListener("pointerup", up);
+      event.stopPropagation();
+    });
+    return id;
+  }
+
+  addCard(80, 80);
+  addCard(380, 40);
+  addCard(380, 220);
+  links.add("c1->c2").add("c1->c3");
+  redraw();
+  stage.focus();
+</script>

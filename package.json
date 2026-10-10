@@ -1,0 +1,66 @@
+{
+  "name": "@johnhenry/patchbay",
+  "version": "0.0.0",
+  "description": "A pannable, zoomable canvas and the wires between things on it: screen/world math, wheel/pinch/drag/keyboard gestures, fit-to-content, SVG bezier wires and a drag-to-connect gesture. Framework-free.",
+  "type": "module",
+  "main": "src/index.mjs",
+  "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.mjs"
+    },
+    "./viewport": {
+      "types": "./src/viewport.d.ts",
+      "default": "./src/viewport.mjs"
+    },
+    "./wires": {
+      "types": "./src/wires.d.ts",
+      "default": "./src/wires.mjs"
+    },
+    "./patchbay.css": "./src/patchbay.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "test": "node --test test/ && npm run examples",
+    "examples": "for f in examples/[0-9]*.mjs; do node \"$f\" || exit 1; done",
+    "example:01": "node examples/01-zooming-keeps-the-point-under-the-cursor-still.mjs",
+    "example:02": "node examples/02-fit-frames-every-node-in-the-container.mjs",
+    "example:03": "node examples/03-a-wire-leaves-right-and-arrives-from-the-left.mjs"
+  },
+  "keywords": [
+    "canvas",
+    "infinite-canvas",
+    "pan",
+    "zoom",
+    "viewport",
+    "wires",
+    "node-editor",
+    "patch",
+    "svg",
+    "spatial"
+  ],
+  "author": "John Henry",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnhenry/patchbay.git"
+  },
+  "homepage": "https://opensource.johnhenry.me/patchbay/",
+  "bugs": "https://github.com/johnhenry/patchbay/issues",
+  "engines": {
+    "node": ">=26.0.0"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.14.6"
+  }
+}
