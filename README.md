@@ -102,6 +102,7 @@ A complete page: [`examples/04-cards-and-wires-in-a-browser/`](examples/04-cards
 
 - **wheel** pans and ⌘+wheel zooms about the cursor; `wheel: "zoom"` swaps those two. Ctrl+wheel and trackpad pinch (which browsers report as a Ctrl wheel) always zoom, at the same rate as ⌘+wheel. A mouse-wheel notch is capped to a modest zoom step (about 1.35×; `wheelZoomSpeed` defaults to `0.006`) so it doesn't jump.
 - **drag** pans when `panOnDrag(event)` returns true; by default the middle button, a drag with Space held, or a primary drag that starts on empty canvas: the stage, the world element or the wire layer (not on your content).
+- **touch**: two fingers pinch-zoom about their midpoint (`zoomAt(midpoint, distanceNow / distanceBefore)`) and pan with it (the midpoint's travel). A second finger cancels a one-finger pan, and the remaining finger does not resume it; lift both and start again. Touches that start inside `data-patchbay-ignore` content are left alone. Mouse and pen behaviour, and one-finger touch panning, are unchanged. `attachViewport` sets `touch-action: none` on the container (restored on `detach()`) so the browser does not claim the gesture; a scrollable `data-patchbay-ignore` child keeps its own touch scrolling.
 - **keyboard**, while the stage has focus: `+`/`=`/`-` zoom, `0` resets to 100%, arrows pan (Shift for bigger steps).
 - **`data-patchbay-ignore`** on any element inside the stage gives it back its own wheel and drag: a scrollable output panel, a map, an interactive animation camera.
 - applies `transform()` to `world` and sets `--patchbay-x`, `--patchbay-y` and `--patchbay-zoom` on the container.
@@ -124,7 +125,7 @@ A complete page: [`examples/04-cards-and-wires-in-a-browser/`](examples/04-cards
 - **It's a CSS transform.** Zooming scales your DOM, so text is re-rasterized (crisp in modern browsers) and very large worlds at very small zoom still lay out every node; cull off-screen nodes with `visibleRect()` if you have thousands.
 - **No node model.** Positions, selection, snapping and undo are yours. `coordinates` plugs into a window manager that has them ([window-algebra](https://github.com/johnhenry/window-algebra)'s input adapter accepts a coordinates hook).
 - **Wires don't route around things.** They're single cubics; with many crossing wires, you get spaghetti, as on a real patch bay.
-- **Multi-touch pinch** relies on the browser's Ctrl-wheel translation of trackpad pinches; two-finger touch-screen pinch is not implemented yet.
+- **Touch pinch/pan is two fingers, no rotation.** A third finger is ignored; touch-screen pinch is implemented with pointer events, trackpad pinch still arrives as a Ctrl+wheel. Not yet verified on a physical touch device (the tests drive pointer events under happy-dom).
 
 ## Family
 

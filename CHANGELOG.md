@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0 (2026-10-16)
+
+- **`attachViewport()`: two-finger pinch zoom and pan on touch screens** (closes #1, requested by Viaframe#561). Two active touch pointers zoom the viewport about their midpoint (`zoomAt(midpoint, distanceNow / distanceBefore)`) and pan it by the midpoint's travel. A second finger cancels the one-finger pan. Touches that start inside `[data-patchbay-ignore]` are skipped. Mouse, pen and one-finger behaviour are unchanged. The container gets `touch-action: none` while attached (restored on `detach()`).
+
 ## 0.0.0 (2026-10-09)
 
 First release. A new package, never published under another name.
