@@ -181,23 +181,27 @@ test("two touch pointers pinch-zoom about their midpoint and pan with it", () =>
 test("a second finger cancels the one-finger pan", () => {
   const { container, world } = stage();
   const vp = createViewport();
-  const { detach } = attachViewport(vp, { container, world });
+  const { detach, coordinates } = attachViewport(vp, { container, world });
   touch(world, "pointerdown", 1, 300, 300);
   touch(container, "pointermove", 1, 320, 310);
   assert.deepEqual([vp.x, vp.y], [20, 10], "one finger pans");
   touch(world, "pointerdown", 2, 500, 300);
-  // move only finger 1 while pinching: distance changes, so zoom, never a plain drag-pan of the finger delta
-  touch(container, "pointermove", 1, 320, 310);
-  assert.deepEqual([vp.x, vp.y, vp.zoom], [20, 10, 1], "no movement, no change");
+  // finger 1 moves while pinching: that is a pinch (zoom + midpoint pan), not a one-finger drag
+  const before = coordinates.toWorld(410, 305); // world point under the old midpoint (320,310)/(500,300)
+  touch(container, "pointermove", 1, 340, 310);
+  assert.ok(vp.zoom < 1, "fingers moved closer, so it zooms out");
+  const moved = coordinates.toWorld(420, 305); // new midpoint (340,310)/(500,300)
+  assert.ok(Math.abs(before.x - moved.x) < 1e-9 && Math.abs(before.y - moved.y) < 1e-9, "the point under the old midpoint follows the new one");
+  const [px, py, pz] = [vp.x, vp.y, vp.zoom];
   touch(container, "pointerup", 2, 500, 300);
   touch(container, "pointermove", 1, 400, 400);
-  assert.deepEqual([vp.x, vp.y], [20, 10], "the remaining finger does not resume the pan");
+  assert.deepEqual([vp.x, vp.y, vp.zoom], [px, py, pz], "the remaining finger does not resume the pan");
   touch(container, "pointerup", 1, 400, 400);
   // a fresh one-finger drag works again
   touch(world, "pointerdown", 3, 0, 0);
   touch(container, "pointermove", 3, 5, 5);
   touch(container, "pointerup", 3, 5, 5);
-  assert.deepEqual([vp.x, vp.y], [25, 15]);
+  assert.ok(Math.abs(vp.x - (px + 5)) < 1e-9 && Math.abs(vp.y - (py + 5)) < 1e-9);
   detach();
 });
 
