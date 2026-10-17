@@ -148,6 +148,109 @@ test("content marked data-patchbay-ignore keeps its own wheel and drag gestures"
   detach();
 });
 
+const touch = (target, type, id, x, y) =>
+  target.dispatchEvent(new window.PointerEvent(type, { bubbles: true, cancelable: true, pointerId: id, pointerType: "touch", button: 0, clientX: x, clientY: y }));
+
+test("two touch pointers pinch-zoom about their midpoint and pan with it", () => {
+  const { container, world } = stage();
+  const vp = createViewport();
+  const { detach, coordinates } = attachViewport(vp, { container, world });
+  // container rect starts at (100, 50)
+  touch(world, "pointerdown", 1, 300, 300);
+  touch(world, "pointerdown", 2, 500, 300);
+  const anchor = coordinates.toWorld(400, 300); // world point under the midpoint
+  // spread to 2x the distance, midpoint unchanged
+  touch(container, "pointermove", 2, 600, 300);
+  touch(container, "pointermove", 1, 200, 300);
+  assert.ok(Math.abs(vp.zoom - 2) < 1e-9, `zoom ${vp.zoom}`);
+  const after = coordinates.toWorld(400, 300);
+  assert.ok(Math.abs(anchor.x - after.x) < 1e-9 && Math.abs(anchor.y - after.y) < 1e-9, "midpoint world point stays put");
+  // move both fingers 30px right / 20px down at constant distance: pure pan
+  const z = vp.zoom;
+  const [x0, y0] = [vp.x, vp.y];
+  touch(container, "pointermove", 1, 230, 320);
+  touch(container, "pointermove", 2, 630, 320);
+  assert.ok(Math.abs(vp.zoom - z) < 1e-12, "constant distance keeps the zoom");
+  assert.ok(Math.abs(vp.x - (x0 + 30)) < 1e-9 && Math.abs(vp.y - (y0 + 20)) < 1e-9, "pans by the midpoint delta");
+  touch(container, "pointerup", 1, 230, 320);
+  touch(container, "pointerup", 2, 630, 320);
+  assert.equal("patchbayPanning" in container.dataset, false);
+  detach();
+});
+
+test("a second finger cancels the one-finger pan", () => {
+  const { container, world } = stage();
+  const vp = createViewport();
+  const { detach, coordinates } = attachViewport(vp, { container, world });
+  touch(world, "pointerdown", 1, 300, 300);
+  touch(container, "pointermove", 1, 320, 310);
+  assert.deepEqual([vp.x, vp.y], [20, 10], "one finger pans");
+  touch(world, "pointerdown", 2, 500, 300);
+  // finger 1 moves while pinching: that is a pinch (zoom + midpoint pan), not a one-finger drag
+  const before = coordinates.toWorld(410, 305); // world point under the old midpoint (320,310)/(500,300)
+  touch(container, "pointermove", 1, 340, 310);
+  assert.ok(vp.zoom < 1, "fingers moved closer, so it zooms out");
+  const moved = coordinates.toWorld(420, 305); // new midpoint (340,310)/(500,300)
+  assert.ok(Math.abs(before.x - moved.x) < 1e-9 && Math.abs(before.y - moved.y) < 1e-9, "the point under the old midpoint follows the new one");
+  const [px, py, pz] = [vp.x, vp.y, vp.zoom];
+  touch(container, "pointerup", 2, 500, 300);
+  touch(container, "pointermove", 1, 400, 400);
+  assert.deepEqual([vp.x, vp.y, vp.zoom], [px, py, pz], "the remaining finger does not resume the pan");
+  touch(container, "pointerup", 1, 400, 400);
+  // a fresh one-finger drag works again
+  touch(world, "pointerdown", 3, 0, 0);
+  touch(container, "pointermove", 3, 5, 5);
+  touch(container, "pointerup", 3, 5, 5);
+  assert.ok(Math.abs(vp.x - (px + 5)) < 1e-9 && Math.abs(vp.y - (py + 5)) < 1e-9);
+  detach();
+});
+
+test("touch pointers on data-patchbay-ignore content do not pinch or pan", () => {
+  const { container, world } = stage();
+  const pane = document.createElement("div");
+  pane.setAttribute("data-patchbay-ignore", "");
+  world.append(pane);
+  const vp = createViewport();
+  const { detach } = attachViewport(vp, { container, world });
+  touch(pane, "pointerdown", 1, 300, 300);
+  touch(pane, "pointerdown", 2, 500, 300);
+  touch(container, "pointermove", 2, 700, 300);
+  touch(container, "pointermove", 1, 100, 300);
+  assert.deepEqual(vp.get(), { x: 0, y: 0, zoom: 1 });
+  // one finger in the ignored pane plus one on the canvas is not a pinch either
+  touch(world, "pointerdown", 3, 300, 300);
+  touch(container, "pointermove", 3, 340, 300);
+  assert.equal(vp.zoom, 1);
+  touch(container, "pointerup", 3, 340, 300);
+  detach();
+});
+
+test("mouse pointers never pinch, even two at once", () => {
+  const { container, world } = stage();
+  const vp = createViewport();
+  const { detach } = attachViewport(vp, { container, world });
+  pointer(world, "pointerdown", { pointerId: 1, clientX: 300, clientY: 300 });
+  pointer(world, "pointerdown", { pointerId: 2, clientX: 500, clientY: 300 });
+  pointer(container, "pointermove", { pointerId: 2, clientX: 700, clientY: 300 });
+  assert.equal(vp.zoom, 1);
+  pointer(container, "pointerup", { pointerId: 1 });
+  pointer(container, "pointerup", { pointerId: 2 });
+  detach();
+});
+
+test("detach clears touch-action and stops pinching", () => {
+  const { container, world } = stage();
+  const vp = createViewport();
+  const { detach } = attachViewport(vp, { container, world });
+  assert.equal(container.style.touchAction, "none");
+  detach();
+  assert.equal(container.style.touchAction, "");
+  touch(world, "pointerdown", 1, 300, 300);
+  touch(world, "pointerdown", 2, 500, 300);
+  touch(container, "pointermove", 2, 700, 300);
+  assert.equal(vp.zoom, 1);
+});
+
 test("detach stops listening", () => {
   const { container, world } = stage();
   const vp = createViewport();

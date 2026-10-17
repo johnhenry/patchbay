@@ -139,6 +139,9 @@ export function boundsOf(rects) {
  * - dragging pans when `panOnDrag(event)` says so: by default the middle
  *   button, Space held, or any primary drag that starts on empty canvas (the
  *   container, the world element, or the wire layer), not on content.
+ * - touch: two fingers pinch-zoom about their midpoint and pan with it; the
+ *   second finger cancels a one-finger pan. Touch on `data-patchbay-ignore`
+ *   content is left alone. Mouse and one-finger behaviour are unchanged.
  * - keyboard (when the container has focus): `+`/`-` zoom, `0` resets zoom,
  *   arrows pan.
  * - anything inside an element with `data-patchbay-ignore` keeps its own
@@ -175,6 +178,11 @@ export function attachViewport(viewport, { container, world, wheel = "pan", whee
     container.style.setProperty("--patchbay-zoom", String(viewport.zoom));
   };
   apply();
+  // Touch gestures are ours: without this the browser pans/zooms the page and
+  // cancels the pointer stream. (A scrollable data-patchbay-ignore child is its
+  // own scroll container, so it keeps touch scrolling.)
+  const priorTouchAction = container.style.touchAction;
+  container.style.touchAction = "none";
   const unsubscribe = viewport.subscribe(apply);
 
   // Empty canvas: the stage, the world, or the wire layer (wires are background).
@@ -212,24 +220,72 @@ export function attachViewport(viewport, { container, world, wheel = "pan", whee
     }
   };
 
+  // Touch: up to two active touch pointers make a pinch. `pinch` holds the
+  // previous distance and midpoint (container-local) between moves.
+  const touches = new Map();
+  let pinch = null;
+  const endDrag = (id) => {
+    container.releasePointerCapture?.(id);
+    delete container.dataset.patchbayPanning;
+    drag = null;
+  };
+  const pinchState = () => {
+    const [a, b] = [...touches.values()];
+    const p = local(a.x, a.y);
+    const q = local(b.x, b.y);
+    return { dist: Math.hypot(q.x - p.x, q.y - p.y), mid: { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 } };
+  };
+
   const onPointerDown = (event) => {
-    if (drag || ignored(event) || !shouldPan(event)) return;
+    if (event.pointerType === "touch" && !ignored(event) && touches.size < 2) {
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (touches.size === 2) {
+        // The second finger turns a one-finger pan into a pinch.
+        if (drag) endDrag(drag.id);
+        for (const id of touches.keys()) container.setPointerCapture?.(id);
+        pinch = pinchState();
+        container.dataset.patchbayPanning = "";
+        event.preventDefault();
+        return;
+      }
+    }
+    if (drag || pinch || ignored(event) || !shouldPan(event)) return;
     drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
     container.setPointerCapture?.(event.pointerId);
     container.dataset.patchbayPanning = "";
     event.preventDefault();
   };
   const onPointerMove = (event) => {
+    const t = touches.get(event.pointerId);
+    if (t) {
+      t.x = event.clientX;
+      t.y = event.clientY;
+    }
+    if (t && pinch) {
+      const now = pinchState();
+      // Pan by the midpoint's travel first, then zoom about the new midpoint:
+      // the world point that was under the old midpoint ends up under the new one.
+      viewport.panBy(now.mid.x - pinch.mid.x, now.mid.y - pinch.mid.y);
+      if (pinch.dist > 0 && now.dist > 0) viewport.zoomAt(now.mid, now.dist / pinch.dist);
+      pinch = now;
+      return;
+    }
     if (!drag || event.pointerId !== drag.id) return;
     viewport.panBy(event.clientX - drag.x, event.clientY - drag.y);
     drag.x = event.clientX;
     drag.y = event.clientY;
   };
   const onPointerUp = (event) => {
+    if (touches.delete(event.pointerId) && pinch) {
+      // Either finger lifting ends the pinch; the other does not resume a pan.
+      container.releasePointerCapture?.(event.pointerId);
+      for (const id of touches.keys()) container.releasePointerCapture?.(id);
+      delete container.dataset.patchbayPanning;
+      pinch = null;
+      return;
+    }
     if (!drag || event.pointerId !== drag.id) return;
-    container.releasePointerCapture?.(event.pointerId);
-    delete container.dataset.patchbayPanning;
-    drag = null;
+    endDrag(event.pointerId);
   };
 
   const editable = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
@@ -280,6 +336,9 @@ export function attachViewport(viewport, { container, world, wheel = "pan", whee
     coordinates,
     detach() {
       unsubscribe();
+      container.style.touchAction = priorTouchAction;
+      touches.clear();
+      pinch = null;
       container.removeEventListener("wheel", onWheel);
       container.removeEventListener("pointerdown", onPointerDown);
       container.removeEventListener("pointermove", onPointerMove);

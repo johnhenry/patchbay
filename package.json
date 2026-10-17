@@ -1,6 +1,6 @@
 {
   "name": "@johnhenry/patchbay",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A pannable, zoomable canvas and the wires between things on it: screen/world math, wheel/pinch/drag/keyboard gestures, fit-to-content, SVG bezier wires and a drag-to-connect gesture. Framework-free.",
   "type": "module",
   "main": "src/index.mjs",
